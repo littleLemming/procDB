@@ -63,8 +63,24 @@ static void free_resources(void) {
 }
 
 static void parse_args(int argc, char **argv) {
+    if(argc > 0) {
+        progname = argv[0];
+    }
+    if (argc != 1) {
+        bail_out(EXIT_FAILURE, "no arguments - usage: procdb-client");
+    }
 }
 
+/**
+ * main
+ * @brief starting point of program
+ * @param argc number of program arguments
+ * @param argv program arguments
+ */
 int main(int argc, char *argv[]) {
+
+    /* parse arguments */
+    parse_args(argc, argv);
+    
     return 0;
 }

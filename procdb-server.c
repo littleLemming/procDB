@@ -19,6 +19,11 @@
  */
 static const char *progname = "server"; /* default name */
 
+ /** 
+ * @brief variable that gets set as soon as a signal gets received
+ */
+volatile sig_atomic_t quit = 0;
+
 
  /**
  * @brief terminate program on program error
@@ -39,6 +44,12 @@ static void free_resources(void);
  * @param options Struct where parsed arguments are stored
  */
 static void parse_args(int argc, char **argv);
+
+/**
+ * @brief Signal handler for SIGINT & SIGTERM which should shut down the server
+ * @param sig Signal number catched
+ */
+static void signal_quit_handler(int sig);
 
 
 static void bail_out(int exitcode, const char *fmt, ...) {
@@ -63,8 +74,43 @@ static void free_resources(void) {
 }
 
 static void parse_args(int argc, char **argv) {
+    if(argc > 0) {
+        progname = argv[0];
+    }
+    if (argc != 2) {
+        bail_out(EXIT_FAILURE, "needs input-file - usage: procdb-server input-file");
+    }
 }
 
+static void signal_quit_handler(int sig) {
+    quit = 1;
+}
+
+/**
+ * main
+ * @brief starting point of program
+ * @param argc number of program arguments
+ * @param argv program arguments
+ */
 int main(int argc, char *argv[]) {
+
+    /* setup signal handlers */
+    const int signals[] = {SIGINT, SIGTERM};
+    struct sigaction s;
+
+    s.sa_handler = signal_quit_handler;
+    s.sa_flags   = 0;
+    if(sigfillset(&s.sa_mask) < 0) {
+        bail_out(EXIT_FAILURE, "sigfillset");
+    }
+    for(int i = 0; i < COUNT_OF(signals); i++) {
+        if (sigaction(signals[i], &s, NULL) < 0) {
+            bail_out(EXIT_FAILURE, "sigaction");
+        }
+    }
+
+    /* parse arguments */
+    parse_args(argc, argv);
+
     return 0;
 }
