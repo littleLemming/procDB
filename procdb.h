@@ -31,3 +31,13 @@
  * @brief Length of an array
  */
 #define COUNT_OF(x) (sizeof(x)/sizeof(x[0]))
+
+ /**
+  * @brief Value for True
+  */
+#define TRUE 1
+
+ /**
+  * @brief Value for False
+  */
+#define FALSE 0

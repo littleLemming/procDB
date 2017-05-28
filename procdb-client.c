@@ -77,6 +77,7 @@ static void bail_out(int exitcode, const char *fmt, ...) {
 }
 
 static void free_resources(void) {
+    printf("freeing resources\n");
 }
 
 static void parse_args(int argc, char **argv) {

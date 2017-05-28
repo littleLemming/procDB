@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    s_p.sa_handler = signal_quit_handler;
+    s_p.sa_handler = signal_print_db_handler;
     s_p.sa_flags   = 0;
     if(sigfillset(&s_p.sa_mask) < 0) {
         bail_out(EXIT_FAILURE, "sigfillset - print");
