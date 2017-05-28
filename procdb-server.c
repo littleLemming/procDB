@@ -13,6 +13,11 @@
 
 #include "procdb.h"
 
+ /**
+ * @brief max length for a line in input-file
+ */
+#define LINE_SIZE (1024)
+
 
  /**
  * @brief Name of the program
@@ -91,6 +96,22 @@ static void parse_args(int argc, char **argv) {
     }
     if (argc != 2) {
         bail_out(EXIT_FAILURE, "needs input-file - usage: procdb-server input-file");
+    }
+    /* open input-file and read line by line - save content */
+    FILE *input_file;
+    input_file = fopen(argv[1], "r");
+    if (input_file == NULL) {
+        bail_out(EXIT_FAILURE, "could not open file - enter valid file - usage: procdb-server input-file");
+    }
+    char* line = malloc((size_t) LINE_SIZE);
+    while (fgets(line, (size_t) LINE_SIZE, input_file) != NULL) {
+        printf("%s\n", line);
+        
+    } if (feof(input_file) == 0) {
+        bail_out(EXIT_FAILURE, "could not properly read input-file");
+    }
+    if (fclose(input_file) != 0) {
+        bail_out(EXIT_FAILURE, "could not properly close input-file after read");
     }
 }
 

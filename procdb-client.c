@@ -128,5 +128,6 @@ int main(int argc, char *argv[]) {
 
     /* EOF file got read - shut down client */
     
+    free_resources();
     return 0;
 }
