@@ -25,6 +25,11 @@
  */
 static const char *progname = "procdb-client"; /* default name */
 
+ /** 
+ * @brief variable that gets set as soon as a signal gets received
+ */
+volatile sig_atomic_t quit = 0;
+
 
  /**
  * @brief terminate program on program error
