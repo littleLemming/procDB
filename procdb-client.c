@@ -17,7 +17,7 @@
  /**
  * @brief Name of the program
  */
-static const char *progname = "client"; /* default name */
+static const char *progname = "procdb-client"; /* default name */
 
 
  /**
@@ -39,6 +39,12 @@ static void free_resources(void);
  * @param options Struct where parsed arguments are stored
  */
 static void parse_args(int argc, char **argv);
+
+/**
+ * @brief Signal handler for SIGINT & SIGTERM which should shut down the client
+ * @param sig Signal number catched
+ */
+static void signal_handler(int sig);
 
 
 static void bail_out(int exitcode, const char *fmt, ...) {
@@ -71,6 +77,10 @@ static void parse_args(int argc, char **argv) {
     }
 }
 
+static void signal_handler(int sig) {
+    quit = 1;
+}
+
 /**
  * main
  * @brief starting point of program
@@ -79,8 +89,30 @@ static void parse_args(int argc, char **argv) {
  */
 int main(int argc, char *argv[]) {
 
+    /* setup signal handlers */
+    const int signals[] = {SIGINT, SIGTERM};
+    struct sigaction s;
+
+    s.sa_handler = signal_handler;
+    s.sa_flags   = 0;
+    if(sigfillset(&s.sa_mask) < 0) {
+        bail_out(EXIT_FAILURE, "sigfillset");
+    }
+    for(int i = 0; i < COUNT_OF(signals); i++) {
+        if (sigaction(signals[i], &s, NULL) < 0) {
+            bail_out(EXIT_FAILURE, "sigaction");
+        }
+    }
+
     /* parse arguments */
     parse_args(argc, argv);
+
+    /* connect to server */
+    /* check if semaphore exists */
+
+    /* check if shared memory object exists */
+
+
     
     return 0;
 }
