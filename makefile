@@ -15,17 +15,17 @@ CFLAGS = -Wall -g -lrt -lpthread -std=c99 -pedantic $(DEFS)
 
 .PHONY: all clean
 
-all: server client
+all: procdb-server procdb-client
 
-server: server.o procdb.h
+procdb-server: procdb-server.o procdb.h
 
-client: client.o procdb.h
+procdb-client: procdb-client.o procdb.h
 
 $.o: $.c 
 	$( CC ) $( CFLAGS ) -c -o $@ $<
 
 clean:
-	rm -f server server.o client client.o
+	rm -f procdb-server procdb-server.o procdb-client procdb-client.o
 
 debug: CFLAGS += -DENDEBUG
 debug: all
