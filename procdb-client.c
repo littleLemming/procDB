@@ -14,6 +14,12 @@
 #include "procdb.h"
 
 
+/**
+ * @brief max length for a line of user input
+ */
+#define LINE_SIZE (1024)
+
+
  /**
  * @brief Name of the program
  */
@@ -109,10 +115,12 @@ int main(int argc, char *argv[]) {
 
     /* connect to server */
     /* check if semaphore exists */
-
     /* check if shared memory object exists */
 
+    /* via stdin get commands from user to send to server */
+    /* as soon as client received command it gets sent to the server, proccessed there and the client reads the reply and prints it */
 
+    /* EOF file got read - shut down client */
     
     return 0;
 }
