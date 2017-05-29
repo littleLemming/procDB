@@ -136,61 +136,46 @@ static void parse_args(int argc, char **argv) {
     char *line = malloc((size_t) LINE_SIZE);
     while (fgets(line, (size_t) LINE_SIZE, input_file) != NULL) {
         struct process p;
-        /* could change to loop with counter & switch for saving */
-        /* set pid */
+
         char *s = strtok(line,",");
-        if (s == NULL) {
-            bail_out(EXIT_FAILURE, "no pid");
-        }
+        int cnt = 0; // 0 - pid, 1 - cpu, 2 - mem, 3 - time, 4 - command
+        int i;
         char *endptr = NULL;
-        int i = strtol(s, &endptr, 10);
-        if (endptr == s || ((i == LONG_MAX || i == LONG_MIN) && errno == ERANGE)) {
-            bail_out(EXIT_FAILURE, "no valid int as pid");
+        while (s != NULL) {
+            if (cnt > 4) {
+                bail_out(EXIT_FAILURE, "too many arguments in input-file");
+            }
+            if (cnt != 4) {
+                endptr = NULL;
+                i = strtol(s, &endptr, 10);
+                if (endptr == s || ((i == LONG_MAX || i == LONG_MIN) && errno == ERANGE)) {
+                    bail_out(EXIT_FAILURE, "invalid int in input-file");
+                }
+            } 
+            switch (cnt) {
+            case 0:
+                p.pid = i;
+                break;
+            case 1:
+                p.p_cpu = i;
+                break;
+            case 2:
+                p.p_mem = i;
+                break;
+            case 3:
+                p.p_time = i;
+                break;
+            case 4:
+            // BIG TODO: after this loop all of the procceses have the command of the last element
+                strcpy(p.p_command, s);
+                break;
+            default:
+                bail_out(EXIT_FAILURE, "too many arguments in one line in input-file");
+            }
+            s = strtok(NULL,",");
+            ++ cnt;
         }
-        p.pid = i;
-        /* set cpu */
-        s = strtok(NULL,",");
-        if (s == NULL) {
-            bail_out(EXIT_FAILURE, "no cpu");
-        }
-        endptr = NULL;
-        i = strtol(s, &endptr, 10);
-        if (endptr == s || ((i == LONG_MAX || i == LONG_MIN) && errno == ERANGE)) {
-            bail_out(EXIT_FAILURE, "no valid int as cpu");
-        }
-        p.p_cpu = i;
-        /* set mem */
-        s = strtok(NULL,",");
-        if (s == NULL) {
-            bail_out(EXIT_FAILURE, "no mem");
-        }
-        endptr = NULL;
-        i = strtol(s, &endptr, 10);
-        if (endptr == s || ((i == LONG_MAX || i == LONG_MIN) && errno == ERANGE)) {
-            bail_out(EXIT_FAILURE, "no valid int as mem");
-        }
-        p.p_mem = i;
-        /* set time */
-        s = strtok(NULL,",");
-        if (s == NULL) {
-            bail_out(EXIT_FAILURE, "no time");
-        }
-        endptr = NULL;
-        i = strtol(s, &endptr, 10);
-        if (endptr == s || ((i == LONG_MAX || i == LONG_MIN) && errno == ERANGE)) {
-            bail_out(EXIT_FAILURE, "no valid int as mem");
-        }
-        p.p_time = i;
-        /* set command */
-        s = strtok(NULL,",");
-        if (s == NULL) {
-            bail_out(EXIT_FAILURE, "no command");
-        }
-        strcpy(p.p_command,s);
-        s = strtok(NULL,",");
-        if (s != NULL) {
-            bail_out(EXIT_FAILURE, "too many arguments in input-file");
-        }
+
         if (count_porccesses+1 >= length_porccesses) {
             length_porccesses += 5;
             processes = (struct process*) realloc(processes, length_porccesses*sizeof(struct process));
@@ -202,6 +187,9 @@ static void parse_args(int argc, char **argv) {
     }
     if (fclose(input_file) != 0) {
         bail_out(EXIT_FAILURE, "could not properly close input-file after read");
+    }
+    for (int i = 0; i < count_porccesses; ++i) {
+        printf("proccess - pid: %d, cpu: %d, mem: %d, time: %d, command: %s\n", processes[i].pid, processes[i].p_cpu, processes[i].p_mem, processes[i].p_time, processes[i].p_command);
     }
 }
 
@@ -258,9 +246,10 @@ int main(int argc, char *argv[]) {
     /* parse arguments */
     parse_args(argc, argv);
 
-    for (int i = 0; i < count_porccesses; ++i) {
+
+    /*for (int i = 0; i < count_porccesses; ++i) {
         printf("proccess - pid: %d, cpu: %d, mem: %d, time: %d, command: %s\n", processes[i].pid, processes[i].p_cpu, processes[i].p_mem, processes[i].p_time, processes[i].p_command);
-    }
+    }*/
 
     /* setup shared memory & semaphores */
 
