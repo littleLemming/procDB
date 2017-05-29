@@ -34,6 +34,33 @@ volatile sig_atomic_t quit = 0;
  */
 volatile sig_atomic_t print_db = 0;
 
+/**
+ * @brief struct that represents a entry in the input file
+ */
+struct process {
+    int pid;
+    int p_cpu;
+    int p_mem;
+    int p_time;
+    char *p_command;
+};
+typedef struct process process;
+
+/**
+ * @brief list of processes initially read in from the input-list
+ */
+struct process *processes = NULL;
+
+/**
+ * @brief length of list of processes initially read in from the input-list
+ */
+int length_porccesses = 0;
+
+/**
+ * @brief count of proccesses in proccess list
+ */
+int count_porccesses = 0;
+
 
  /**
  * @brief terminate program on program error
@@ -88,6 +115,9 @@ static void bail_out(int exitcode, const char *fmt, ...) {
 
 static void free_resources(void) {
     printf("freeing resources\n");
+    if (processes != NULL) {
+        free(processes);
+    }
 }
 
 static void parse_args(int argc, char **argv) {
@@ -103,10 +133,70 @@ static void parse_args(int argc, char **argv) {
     if (input_file == NULL) {
         bail_out(EXIT_FAILURE, "could not open file - enter valid file - usage: procdb-server input-file");
     }
-    char* line = malloc((size_t) LINE_SIZE);
+    char *line = malloc((size_t) LINE_SIZE);
     while (fgets(line, (size_t) LINE_SIZE, input_file) != NULL) {
-        printf("%s\n", line);
-        
+        struct process p;
+        /* could change to loop with counter & switch for saving */
+        /* set pid */
+        char *s = strtok(line,",");
+        if (s == NULL) {
+            bail_out(EXIT_FAILURE, "no pid");
+        }
+        char *endptr = NULL;
+        int i = strtol(s, &endptr, 10);
+        if (endptr == s || ((i == LONG_MAX || i == LONG_MIN) && errno == ERANGE)) {
+            bail_out(EXIT_FAILURE, "no valid int as pid");
+        }
+        p.pid = i;
+        /* set cpu */
+        s = strtok(NULL,",");
+        if (s == NULL) {
+            bail_out(EXIT_FAILURE, "no cpu");
+        }
+        endptr = NULL;
+        i = strtol(s, &endptr, 10);
+        if (endptr == s || ((i == LONG_MAX || i == LONG_MIN) && errno == ERANGE)) {
+            bail_out(EXIT_FAILURE, "no valid int as cpu");
+        }
+        p.p_cpu = i;
+        /* set mem */
+        s = strtok(NULL,",");
+        if (s == NULL) {
+            bail_out(EXIT_FAILURE, "no mem");
+        }
+        endptr = NULL;
+        i = strtol(s, &endptr, 10);
+        if (endptr == s || ((i == LONG_MAX || i == LONG_MIN) && errno == ERANGE)) {
+            bail_out(EXIT_FAILURE, "no valid int as mem");
+        }
+        p.p_mem = i;
+        /* set time */
+        s = strtok(NULL,",");
+        if (s == NULL) {
+            bail_out(EXIT_FAILURE, "no time");
+        }
+        endptr = NULL;
+        i = strtol(s, &endptr, 10);
+        if (endptr == s || ((i == LONG_MAX || i == LONG_MIN) && errno == ERANGE)) {
+            bail_out(EXIT_FAILURE, "no valid int as mem");
+        }
+        p.p_time = i;
+        /* set command */
+        s = strtok(NULL,",");
+        if (s == NULL) {
+            bail_out(EXIT_FAILURE, "no command");
+        }
+        strcpy(p.p_command,s);
+        s = strtok(NULL,",");
+        if (s != NULL) {
+            bail_out(EXIT_FAILURE, "too many arguments in input-file");
+        }
+        if (count_porccesses+1 >= length_porccesses) {
+            length_porccesses += 5;
+            processes = (struct process*) realloc(processes, length_porccesses*sizeof(struct process));
+        }
+        processes[count_porccesses] = p;
+        count_porccesses ++;
     } if (feof(input_file) == 0) {
         bail_out(EXIT_FAILURE, "could not properly read input-file");
     }
@@ -161,8 +251,16 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /* reserve list of processes to save stuff from input-file in */
+    processes = malloc(sizeof(struct process)*5);
+    length_porccesses = 5;
+
     /* parse arguments */
     parse_args(argc, argv);
+
+    for (int i = 0; i < count_porccesses; ++i) {
+        printf("proccess - pid: %d, cpu: %d, mem: %d, time: %d, command: %s\n", processes[i].pid, processes[i].p_cpu, processes[i].p_mem, processes[i].p_time, processes[i].p_command);
+    }
 
     /* setup shared memory & semaphores */
 
