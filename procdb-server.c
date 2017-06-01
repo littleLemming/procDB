@@ -166,8 +166,7 @@ static void parse_args(int argc, char **argv) {
                 p.p_time = i;
                 break;
             case 4:
-            // BIG TODO: after this loop all of the procceses have the command of the last element
-                strcpy(p.p_command, s);
+                p.p_command = strdup(s);
                 break;
             default:
                 bail_out(EXIT_FAILURE, "too many arguments in one line in input-file");
