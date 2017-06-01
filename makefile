@@ -10,19 +10,14 @@
 ##
 
 CC = gcc 
-DEFS = -D_BSD_SOURCE -D_SVID_SOURCE -D_POSIX_C_SOURCE=200809
-CFLAGS = -Wall -g -lrt -lpthread -std=c99 -pedantic $(DEFS)
+CFLAGS=-Wall -std=c99 -pedantic -D_BSD_SOURCE -D_SVID_SOURCE -D_POSIX_C_SOURCE=200809 -g -lrt -lpthread
 
 .PHONY: all clean
 
 all: procdb-server procdb-client
 
-procdb-server: procdb-server.o procdb.h
-
-procdb-client: procdb-client.o procdb.h
-
-$.o: $.c 
-	$( CC ) $( CFLAGS ) -c -o $@ $<
+$.o: $.c
+	$(CC) $(CFLAGS) $^
 
 clean:
 	rm -f procdb-server procdb-server.o procdb-client procdb-client.o
