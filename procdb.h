@@ -19,6 +19,9 @@
 #include <stdarg.h>
 #include <sys/wait.h>
 #include <limits.h>
+#include <semaphore.h>
+#include <fcntl.h> 
+#include <sys/mman.h>
 
 
 #ifdef ENDEBUG
@@ -35,9 +38,24 @@
  /**
   * @brief Value for True
   */
-#define TRUE 1
+#define TRUE (1)
 
  /**
   * @brief Value for False
   */
-#define FALSE 0
+#define FALSE (0)
+
+  /* 
+   * @brief persmissions for semaphores & shared memory
+   */
+#define PERMISSION (0600)
+
+/*
+ * @brief location of the server-control semaphore for clients to connect to
+ */ 
+#define SEM_SERVER "/procdb_server_control_sem"
+
+/*
+ * @brief location of the server-control shared memory for clients to connect to
+ */ 
+ #define SHM_SERVER "/procdb_server_control_shm"

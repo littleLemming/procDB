@@ -61,6 +61,15 @@ int length_porccesses = 0;
  */
 int count_porccesses = 0;
 
+/**
+ * @brief semaphore for server
+ */
+sem_t *server;
+
+/**
+ * @brief variable indicating if semaphores are set up 
+ */
+ int sem_set_up = 0;
 
  /**
  * @brief terminate program on program error
@@ -117,6 +126,16 @@ static void free_resources(void) {
     printf("freeing resources\n");
     if (processes != NULL) {
         free(processes);
+    }
+    if(server != 0) {
+        if (sem_close(server) == -1) {
+            printf("close server sem failed");
+        }
+    }
+    if (sem_set_up) {
+        if (sem_unlink(SEM_SERVER) == -1) {
+            printf("could not unlink server sempahore");
+        }
     }
 }
 
@@ -187,9 +206,6 @@ static void parse_args(int argc, char **argv) {
     if (fclose(input_file) != 0) {
         bail_out(EXIT_FAILURE, "could not properly close input-file after read");
     }
-    for (int i = 0; i < count_porccesses; ++i) {
-        printf("proccess - pid: %d, cpu: %d, mem: %d, time: %d, command: %s\n", processes[i].pid, processes[i].p_cpu, processes[i].p_mem, processes[i].p_time, processes[i].p_command);
-    }
 }
 
 static void signal_quit_handler(int sig) {
@@ -245,12 +261,16 @@ int main(int argc, char *argv[]) {
     /* parse arguments */
     parse_args(argc, argv);
 
-
-    /*for (int i = 0; i < count_porccesses; ++i) {
-        printf("proccess - pid: %d, cpu: %d, mem: %d, time: %d, command: %s\n", processes[i].pid, processes[i].p_cpu, processes[i].p_mem, processes[i].p_time, processes[i].p_command);
-    }*/
-
     /* setup shared memory & semaphores */
+    if (shm_open(SHM_SERVER, O_RDWR | O_CREAT, PERMISSION) == -1) {
+        bail_out(errno, "could not set up server shared memory");
+    }
+    server = sem_open(SEM_SERVER, O_CREAT | O_EXCL, PERMISSION, 0);
+    if (server == SEM_FAILED) {
+        bail_out(errno, "could not set up server sempahore");
+    }
+
+    sem_set_up = 1;
 
     /* wait for requests of clients, and write back answers */
     while (TRUE) {
@@ -259,7 +279,9 @@ int main(int argc, char *argv[]) {
             break;
         }
         if (print_db == 1) {
-            printf("printing database:\n");
+            for (int i = 0; i < count_porccesses; ++i) {
+                printf("proccess - pid: %d, cpu: %d, mem: %d, time: %d, command: %s\n", processes[i].pid, processes[i].p_cpu, processes[i].p_mem, processes[i].p_time, processes[i].p_command);
+            }
             print_db = 0;
         }
     }
