@@ -30,6 +30,26 @@ static const char *progname = "procdb-client"; /* default name */
  */
 volatile sig_atomic_t quit = 0;
 
+/**
+ * @brief semaphore for request
+ */
+sem_t *request;
+
+/**
+ * @brief semaphore for response
+ */
+sem_t *response;
+
+/**
+ * @brief semaphore for cleanup
+ */
+sem_t *cleanup;
+
+/**
+ * @brief semaphore for interaction_started
+ */
+sem_t *interaction_started;
+
 
  /**
  * @brief terminate program on program error
@@ -142,14 +162,11 @@ int main(int argc, char *argv[]) {
         int pid_cmd = -1;
         if (strcmp("min", s) == 0) {
             pid_cmd = 0;
-        }
-        else if (strcmp("max", s) == 0) {
+        } else if (strcmp("max", s) == 0) {
             pid_cmd = 1;
-        }
-        else if (strcmp("sum", s) == 0) {
+        } else if (strcmp("sum", s) == 0) {
             pid_cmd = 2;
-        }
-        else if (strcmp("avg", s) == 0) {
+        } else if (strcmp("avg", s) == 0) {
             pid_cmd = 3;
         }
         else {
@@ -177,14 +194,11 @@ int main(int argc, char *argv[]) {
         int info = -1;
         if (strcmp("cpu", s) == 0) {
             info = 0;
-        }
-        else if (strcmp("mem", s) == 0) {
+        } else if (strcmp("mem", s) == 0) {
             info = 1;
-        }
-        else if (strcmp("time", s) == 0) {
+        } else if (strcmp("time", s) == 0) {
             info = 2;
-        }
-        else if (strcmp("command", s) == 0) {
+        } else if (strcmp("command", s) == 0) {
             info = 3;
         }
         if (info == -1) {

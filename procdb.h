@@ -56,19 +56,24 @@
 #define PERMISSION (0600)
 
 /*
- * @brief location of the server semaphore
- */ 
-#define SEM_SERVER "/procdb_server_sem"
-
-/*
  * @brief location of the interaction_started semaphore
  */ 
 #define SEM_INTERACTION_STARTED "/procdb_interaction_started_sem"
 
 /*
- * @brief location of the client semaphore
+ * @brief location of the request semaphore
  */ 
-#define SEM_CLIENT "/procdb_client_sem"
+#define SEM_REQUEST "/procdb_request_sem"
+
+/*
+ * @brief location of the response semaphore
+ */ 
+#define SEM_RESPONSE "/procdb_response_sem"
+
+ /*
+ * @brief location of the cleanup semaphore
+ */ 
+#define SEM_CLEANUP "/procdb_cleanup_sem"
 
 /*
  * @brief location of the server-control shared memory for clients to connect to
