@@ -31,24 +31,29 @@ static const char *progname = "procdb-client"; /* default name */
 volatile sig_atomic_t quit = 0;
 
 /**
- * @brief semaphore for request
+ * @brief semaphore for client
  */
-sem_t *request;
+sem_t *client;
 
 /**
- * @brief semaphore for response
+ * @brief semaphore for server
  */
-sem_t *response;
-
-/**
- * @brief semaphore for cleanup
- */
-sem_t *cleanup;
+sem_t *server;
 
 /**
  * @brief semaphore for interaction_started
  */
 sem_t *interaction_started;
+
+/**
+ * @brief variable indicating if semaphores & shared memory are set up 
+ */
+int client_set_up = 0;
+
+/**
+ * @brief shm is the structure for the shared memory - it needs to be locked before use with a semaphore
+ */
+ struct shm_struct *shm;
 
 
  /**
@@ -103,6 +108,27 @@ static void bail_out(int exitcode, const char *fmt, ...) {
 
 static void free_resources(void) {
     printf("freeing resources\n");
+    if (client_set_up) {
+        /* unmap shared memory */
+        if (munmap(shm, sizeof *shm) == -1) {
+            printf("could not munmap shared memory");
+        }
+    }
+    if (server != 0) {
+        if (sem_close(server) == -1) {
+            printf("could not close server semaphore");
+        }
+    }
+    if (client != 0) {
+        if (sem_close(client) == -1) {
+            printf("could not close client semaphore");
+        }
+    }
+    if (interaction_started != 0) {
+        if (sem_close(interaction_started) == -1) {
+            printf("could not close interaction_started semaphore");
+        }
+    }
 }
 
 static void parse_args(int argc, char **argv) {
@@ -149,7 +175,36 @@ int main(int argc, char *argv[]) {
     parse_args(argc, argv);
 
     /* check if shared memory object exists */
-    /* check if semaphore exists */
+    int shmfd = shm_open(SHM_SERVER, O_RDWR, PERMISSION);
+    if (shmfd == -1) {
+        bail_out(errno, "server seems to be down");
+    }
+    /* set up shared memory for the client to use */
+    if (ftruncate(shmfd, sizeof *shm) == -1) {
+        bail_out(errno, "could not ftruncate");
+    }
+    shm = mmap(NULL, sizeof *shm, PROT_READ | PROT_WRITE, MAP_SHARED, shmfd, 0);
+    if (shm == MAP_FAILED) {
+        bail_out(errno, "could not correctly execute mmap");
+    }
+    if (close(shmfd) == -1) {
+        bail_out(errno, "could not close shm file descriptor");
+    }
+    /* open semaphores */
+    client = sem_open(SEM_CLIENT, 0);
+    if (client == SEM_FAILED) {
+        bail_out(errno, "could not open client sempahore");
+    }
+    server = sem_open(SEM_SERVER, 0);
+    if (server == SEM_FAILED) {
+        bail_out(errno, "could not opne server sempahore");
+    }
+    interaction_started = sem_open(SEM_INTERACTION_STARTED, 0);
+    if (interaction_started == SEM_FAILED) {
+        bail_out(errno, "could not open interaction_started sempahore");
+    }
+
+    client_set_up = 1;
 
     /* via stdin get commands from user to send to server */
     /* as soon as client received command it gets sent to the server, proccessed there and the client reads the reply and prints it */

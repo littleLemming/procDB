@@ -62,19 +62,14 @@ int length_porccesses = 0;
 int count_porccesses = 0;
 
 /**
- * @brief semaphore for request
+ * @brief semaphore for client
  */
-sem_t *request;
+sem_t *client;
 
 /**
- * @brief semaphore for response
+ * @brief semaphore for server
  */
-sem_t *response;
-
-/**
- * @brief semaphore for cleanup
- */
-sem_t *cleanup;
+sem_t *server;
 
 /**
  * @brief semaphore for interaction_started
@@ -165,19 +160,14 @@ static void free_resources(void) {
             printf("could not unlink shared memory");
         }
     }
-    if (request != 0) {
-        if (sem_close(request) == -1) {
-            printf("could not close request semaphore");
+    if (server != 0) {
+        if (sem_close(server) == -1) {
+            printf("could not close server semaphore");
         }
     }
-    if (response != 0) {
-        if (sem_close(response) == -1) {
-            printf("could not close response semaphore");
-        }
-    }
-    if (cleanup != 0) {
-        if (sem_close(cleanup) == -1) {
-            printf("could not close cleanup semaphore");
+    if (client != 0) {
+        if (sem_close(client) == -1) {
+            printf("could not close client semaphore");
         }
     }
     if (interaction_started != 0) {
@@ -186,14 +176,11 @@ static void free_resources(void) {
         }
     }
     if (server_set_up) {
-        if (sem_unlink(SEM_RESPONSE) == -1) {
-            printf("could not unlink response sempahore");
+        if (sem_unlink(SEM_SERVER) == -1) {
+            printf("could not unlink server sempahore");
         }
-        if (sem_unlink(SEM_REQUEST) == -1) {
-            printf("could not unlink request sempahore");
-        }
-        if (sem_unlink(SEM_CLEANUP) == -1) {
-            printf("could not unlink cleanup sempahore");
+        if (sem_unlink(SEM_CLIENT) == -1) {
+            printf("could not unlink client sempahore");
         }
         if (sem_unlink(SEM_INTERACTION_STARTED) == -1) {
             printf("could not unlink interaction_started sempahore");
@@ -388,19 +375,15 @@ int main(int argc, char *argv[]) {
     }
 
     /* set up semaphores */
-    response = sem_open(SEM_RESPONSE, O_CREAT | O_EXCL, PERMISSION, 0);
-    if (response == SEM_FAILED) {
-        bail_out(errno, "could not set up response sempahore");
+    client = sem_open(SEM_CLIENT, O_CREAT | O_EXCL, PERMISSION, 1);
+    if (client == SEM_FAILED) {
+        bail_out(errno, "could not set up client sempahore");
     }
-    request = sem_open(SEM_REQUEST, O_CREAT | O_EXCL, PERMISSION, 0);
-    if (request == SEM_FAILED) {
-        bail_out(errno, "could not set up request sempahore");
+    server = sem_open(SEM_SERVER, O_CREAT | O_EXCL, PERMISSION, 0);
+    if (server == SEM_FAILED) {
+        bail_out(errno, "could not set up server sempahore");
     }
-    cleanup = sem_open(SEM_CLEANUP, O_CREAT | O_EXCL, PERMISSION, 0);
-    if (cleanup == SEM_FAILED) {
-        bail_out(errno, "could not set up cleanup sempahore");
-    }
-    interaction_started = sem_open(SEM_INTERACTION_STARTED, O_CREAT | O_EXCL, PERMISSION, 0);
+    interaction_started = sem_open(SEM_INTERACTION_STARTED, O_CREAT | O_EXCL, PERMISSION, 1);
     if (interaction_started == SEM_FAILED) {
         bail_out(errno, "could not set up interaction_started sempahore");
     }

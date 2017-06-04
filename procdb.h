@@ -61,19 +61,14 @@
 #define SEM_INTERACTION_STARTED "/procdb_interaction_started_sem"
 
 /*
- * @brief location of the request semaphore
+ * @brief location of the client semaphore
  */ 
-#define SEM_REQUEST "/procdb_request_sem"
-
-/*
- * @brief location of the response semaphore
- */ 
-#define SEM_RESPONSE "/procdb_response_sem"
+#define SEM_CLIENT "/procdb_client"
 
  /*
- * @brief location of the cleanup semaphore
+ * @brief location of the server semaphore
  */ 
-#define SEM_CLEANUP "/procdb_cleanup_sem"
+#define SEM_SERVER "/procdb_server"
 
 /*
  * @brief location of the server-control shared memory for clients to connect to
