@@ -35,6 +35,11 @@
  */
 #define COUNT_OF(x) (sizeof(x)/sizeof(x[0]))
 
+/**
+ * @brief max length for a line to be read in (from client)
+ */
+#define LINE_SIZE (1024)
+
  /**
   * @brief Value for True
   */
@@ -51,15 +56,28 @@
 #define PERMISSION (0600)
 
 /*
- * @brief location of the server-control semaphore for clients to connect to
+ * @brief location of the server semaphore
  */ 
-#define SEM_SERVER "/procdb_server_control_sem"
+#define SEM_SERVER "/procdb_server_sem"
+
+/*
+ * @brief location of the interaction_started semaphore
+ */ 
+#define SEM_INTERACTION_STARTED "/procdb_interaction_started_sem"
+
+/*
+ * @brief location of the client semaphore
+ */ 
+#define SEM_CLIENT "/procdb_client_sem"
 
 /*
  * @brief location of the server-control shared memory for clients to connect to
  */ 
 #define SHM_SERVER "/procdb_server_control_shm"
 
+/*
+ * @brief shm_struct is the struct that is the structure for the shared memory space
+ */ 
 struct shm_struct {
     /* at first set to -1, the client sets it to either -2 if pid_cmd should be used or to the numeric value of the proccess id */
     int pid;
@@ -69,6 +87,4 @@ struct shm_struct {
     int info;
     /* at first set to NULL, this is what the server returns to the client - numbers and char* get both returned as a char* as the client does not need to proccess it */
     char *value;
-    /* after the client read the information the server sent he writes 1 to ack, the server sets it back to 0 after having cleaned up */
-    int ack; 
 };

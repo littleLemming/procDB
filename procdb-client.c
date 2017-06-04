@@ -99,7 +99,7 @@ static void signal_handler(int sig) {
 }
 
 static void print_invalid_command(void) {
-    printf("INVALID COMMAND: command must look like PID INFO - PID = {min, max, sum, avg, i} where i is a valid int >= 0, INFO = {cpu, mem, time, command}\n");
+    printf("INVALID COMMAND: command must look like PID INFO - PID = {min, max, sum, avg, i} where i is a valid int >= 0, INFO = {cpu, mem, time, command}\ncommand can only appear with a specific pid\n");
 }
 
 /**
@@ -135,6 +135,7 @@ int main(int argc, char *argv[]) {
     /* as soon as client received command it gets sent to the server, proccessed there and the client reads the reply and prints it */
     char* line = malloc((size_t) LINE_SIZE);
     while(fgets(line, LINE_SIZE-1 , stdin) != NULL) {
+        /* check if the command that got entered was valid */
         char *s = strtok(line," ");
         /* s should either be an int or min, max, sum, avg */
         int pid = -1;
@@ -190,6 +191,10 @@ int main(int argc, char *argv[]) {
             print_invalid_command();
             continue;
         }
+        if (info == 3 && pid_cmd != -1) {
+            print_invalid_command();
+            continue;
+        }
         s = strtok(NULL," ");
         if (s != NULL) {
             print_invalid_command();
@@ -198,6 +203,10 @@ int main(int argc, char *argv[]) {
         printf("%d\n", pid);
         printf("%d\n", pid_cmd);
         printf("%d\n", info);
+
+        /* write the command to the server */
+
+        /* read the response and print */
     }
     free(line);
 

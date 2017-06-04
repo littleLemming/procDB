@@ -67,6 +67,16 @@ int count_porccesses = 0;
 sem_t *server;
 
 /**
+ * @brief semaphore for client
+ */
+sem_t *client;
+
+/**
+ * @brief semaphore for interaction_started
+ */
+sem_t *interaction_started;
+
+/**
  * @brief variable indicating if semaphores & shared memory are set up 
  */
  int server_set_up = 0;
@@ -108,6 +118,13 @@ static void signal_quit_handler(int sig);
  */
 static void signal_print_db_handler(int sig);
 
+/**
+ * @brief this funciton calculates and returns the result of the calculation of min/max/sum/avg over all processes
+ * @param command 0 - min, 1 - max, 2 - sum, 3 - avg
+ * @param field 0 - cpu, 1 - mem, 2 - time
+ */
+static float calculate_min_max_sum_avg(int command, int field);
+
 
 static void bail_out(int exitcode, const char *fmt, ...) {
     va_list ap;
@@ -141,16 +158,31 @@ static void free_resources(void) {
         if (shm_unlink(SHM_SERVER) == -1) {
             printf("could not unlink shared memory");
         }
-
     }
-    if(server != 0) {
+    if (server != 0) {
         if (sem_close(server) == -1) {
             printf("could not close server semaphore");
+        }
+    }
+    if (client != 0) {
+        if (sem_close(client) == -1) {
+            printf("could not close client semaphore");
+        }
+    }
+    if (interaction_started != 0) {
+        if (sem_close(interaction_started) == -1) {
+            printf("could not close interaction_started semaphore");
         }
     }
     if (server_set_up) {
         if (sem_unlink(SEM_SERVER) == -1) {
             printf("could not unlink server sempahore");
+        }
+        if (sem_unlink(SEM_CLIENT) == -1) {
+            printf("could not unlink client sempahore");
+        }
+        if (sem_unlink(SEM_INTERACTION_STARTED) == -1) {
+            printf("could not unlink interaction_started sempahore");
         }
     }
 }
@@ -183,7 +215,7 @@ static void parse_args(int argc, char **argv) {
             if (cnt != 4) {
                 endptr = NULL;
                 i = strtol(s, &endptr, 10);
-                if (endptr == s || ((i == LONG_MAX || i == LONG_MIN) && errno == ERANGE)) {
+                if (endptr == s || strcmp("", endptr) != 0  || ((i == LONG_MAX || i == LONG_MIN) && errno == ERANGE)) {
                     bail_out(EXIT_FAILURE, "invalid int in input-file");
                 }
             } 
@@ -300,11 +332,16 @@ int main(int argc, char *argv[]) {
     if (server == SEM_FAILED) {
         bail_out(errno, "could not set up server sempahore");
     }
-
+    client = sem_open(SEM_CLIENT, O_CREAT | O_EXCL, PERMISSION, 0);
+    if (client == SEM_FAILED) {
+        bail_out(errno, "could not set up client sempahore");
+    }
+    interaction_started = sem_open(SEM_INTERACTION_STARTED, O_CREAT | O_EXCL, PERMISSION, 0);
+    if (interaction_started == SEM_FAILED) {
+        bail_out(errno, "could not set up interaction_started sempahore");
+    }
 
     server_set_up = 1;
-
-    printf("setup complete\n");
 
     /* wait for requests of clients, and write back answers */
     while (TRUE) {
@@ -318,6 +355,7 @@ int main(int argc, char *argv[]) {
             }
             print_db = 0;
         }
+        
     }
 
     free_resources();
