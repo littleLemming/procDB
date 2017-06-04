@@ -57,6 +57,11 @@ static void parse_args(int argc, char **argv);
  */
 static void signal_handler(int sig);
 
+/**
+ * @brief prints an information what an valid command should look like
+ */
+static void print_invalid_command(void);
+
 
 static void bail_out(int exitcode, const char *fmt, ...) {
     va_list ap;
@@ -93,6 +98,10 @@ static void signal_handler(int sig) {
     quit = 1;
 }
 
+static void print_invalid_command(void) {
+    printf("INVALID COMMAND: command must look like PID INFO - PID = {min, max, sum, avg, i} where i is a valid int >= 0, INFO = {cpu, mem, time, command}\n");
+}
+
 /**
  * main
  * @brief starting point of program
@@ -119,15 +128,80 @@ int main(int argc, char *argv[]) {
     /* parse arguments */
     parse_args(argc, argv);
 
-    /* connect to server */
-    /* check if semaphore exists */
     /* check if shared memory object exists */
+    /* check if semaphore exists */
 
     /* via stdin get commands from user to send to server */
     /* as soon as client received command it gets sent to the server, proccessed there and the client reads the reply and prints it */
+    char* line = malloc((size_t) LINE_SIZE);
+    while(fgets(line, LINE_SIZE-1 , stdin) != NULL) {
+        char *s = strtok(line," ");
+        /* s should either be an int or min, max, sum, avg */
+        int pid = -1;
+        int pid_cmd = -1;
+        if (strcmp("min", s) == 0) {
+            pid_cmd = 0;
+        }
+        else if (strcmp("max", s) == 0) {
+            pid_cmd = 1;
+        }
+        else if (strcmp("sum", s) == 0) {
+            pid_cmd = 2;
+        }
+        else if (strcmp("avg", s) == 0) {
+            pid_cmd = 3;
+        }
+        else {
+            char *endptr = NULL;
+            int i = strtol(s, &endptr, 10);
+            if (endptr == s || strcmp("", endptr) != 0 || ((i == LONG_MAX || i == LONG_MIN) && errno == ERANGE)) {
+                print_invalid_command();
+                continue;
+            }
+            pid = i;
+        }
+        if (pid_cmd != -1 && pid == -1) {
+            pid = -2;
+        }
+        if (pid == -1 && pid_cmd == -1) {
+            print_invalid_command();
+            continue;
+        }
+        /* s should either be cpu, mem, time or command */
+        s = strtok(NULL," ");
+        if (s[(strlen(s)-1)] == '\n') {
+            char *pos = s+strlen(s)-1;
+            *pos = '\0';
+        }
+        int info = -1;
+        if (strcmp("cpu", s) == 0) {
+            info = 0;
+        }
+        else if (strcmp("mem", s) == 0) {
+            info = 1;
+        }
+        else if (strcmp("time", s) == 0) {
+            info = 2;
+        }
+        else if (strcmp("command", s) == 0) {
+            info = 3;
+        }
+        if (info == -1) {
+            print_invalid_command();
+            continue;
+        }
+        s = strtok(NULL," ");
+        if (s != NULL) {
+            print_invalid_command();
+            continue;
+        }
+        printf("%d\n", pid);
+        printf("%d\n", pid_cmd);
+        printf("%d\n", info);
+    }
+    free(line);
 
     /* EOF file got read - shut down client */
-    
     free_resources();
     return 0;
 }
