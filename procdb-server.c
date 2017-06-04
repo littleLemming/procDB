@@ -44,7 +44,7 @@ struct process {
     int p_time;
     char *p_command;
 };
-typedef struct process process;
+//typedef struct process process;
 
 /**
  * @brief list of processes initially read in from the input-list
@@ -67,9 +67,14 @@ int count_porccesses = 0;
 sem_t *server;
 
 /**
- * @brief variable indicating if semaphores are set up 
+ * @brief variable indicating if semaphores & shared memory are set up 
  */
- int sem_set_up = 0;
+ int server_set_up = 0;
+
+ /**
+ * @brief shm is the structure for the shared memory - it needs to be locked before use with a semaphore
+ */
+ struct shm_struct *shm;
 
  /**
  * @brief terminate program on program error
@@ -127,12 +132,23 @@ static void free_resources(void) {
     if (processes != NULL) {
         free(processes);
     }
+    if (server_set_up) {
+        /* unmap shared memory */
+        if (munmap(shm, sizeof *shm) == -1) {
+            printf("could not munmap shared memory");
+        }
+        /* remove shared memory */
+        if (shm_unlink(SHM_SERVER) == -1) {
+            printf("could not unlink shared memory");
+        }
+
+    }
     if(server != 0) {
         if (sem_close(server) == -1) {
-            printf("close server sem failed");
+            printf("could not close server semaphore");
         }
     }
-    if (sem_set_up) {
+    if (server_set_up) {
         if (sem_unlink(SEM_SERVER) == -1) {
             printf("could not unlink server sempahore");
         }
@@ -261,16 +277,34 @@ int main(int argc, char *argv[]) {
     /* parse arguments */
     parse_args(argc, argv);
 
-    /* setup shared memory & semaphores */
-    if (shm_open(SHM_SERVER, O_RDWR | O_CREAT, PERMISSION) == -1) {
+    /* setup shared memory */
+    int shmfd = shm_open(SHM_SERVER, O_RDWR | O_CREAT, PERMISSION);
+    if (shmfd == -1) {
         bail_out(errno, "could not set up server shared memory");
     }
+    /* adjust the length of the shared memory */
+    if (ftruncate(shmfd, sizeof *shm) == -1) {
+        bail_out(errno, "could not ftruncate");
+    }
+    /* establish mapping */
+    shm = mmap(NULL, sizeof *shm, PROT_READ | PROT_WRITE, MAP_SHARED, shmfd, 0);
+    if (shm == MAP_FAILED) {
+        bail_out(errno, "could not correctly execute mmap");
+    }
+    if (close(shmfd) == -1) {
+        bail_out(errno, "could not close shm file descriptor");
+    }
+
+    /* set up semaphores */
     server = sem_open(SEM_SERVER, O_CREAT | O_EXCL, PERMISSION, 0);
     if (server == SEM_FAILED) {
         bail_out(errno, "could not set up server sempahore");
     }
 
-    sem_set_up = 1;
+
+    server_set_up = 1;
+
+    printf("setup complete\n");
 
     /* wait for requests of clients, and write back answers */
     while (TRUE) {

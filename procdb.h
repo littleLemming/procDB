@@ -58,4 +58,10 @@
 /*
  * @brief location of the server-control shared memory for clients to connect to
  */ 
- #define SHM_SERVER "/procdb_server_control_shm"
+#define SHM_SERVER "/procdb_server_control_shm"
+
+struct shm_struct {
+
+    /* after the client read the information the server sent he writes 1 to ack, the server sets it back to 0 after having cleaned up */
+    int ack; 
+};
