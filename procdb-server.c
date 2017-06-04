@@ -62,14 +62,19 @@ int length_porccesses = 0;
 int count_porccesses = 0;
 
 /**
- * @brief semaphore for server
+ * @brief semaphore for request
  */
-sem_t *server;
+sem_t *request;
 
 /**
- * @brief semaphore for client
+ * @brief semaphore for response
  */
-sem_t *client;
+sem_t *response;
+
+/**
+ * @brief semaphore for cleanup
+ */
+sem_t *cleanup;
 
 /**
  * @brief semaphore for interaction_started
@@ -122,8 +127,9 @@ static void signal_print_db_handler(int sig);
  * @brief this funciton calculates and returns the result of the calculation of min/max/sum/avg over all processes
  * @param command 0 - min, 1 - max, 2 - sum, 3 - avg
  * @param field 0 - cpu, 1 - mem, 2 - time
+ * @return returns the result as a double
  */
-static float calculate_min_max_sum_avg(int command, int field);
+static double calculate_min_max_sum_avg(int command, int field);
 
 
 static void bail_out(int exitcode, const char *fmt, ...) {
@@ -159,14 +165,19 @@ static void free_resources(void) {
             printf("could not unlink shared memory");
         }
     }
-    if (server != 0) {
-        if (sem_close(server) == -1) {
-            printf("could not close server semaphore");
+    if (request != 0) {
+        if (sem_close(request) == -1) {
+            printf("could not close request semaphore");
         }
     }
-    if (client != 0) {
-        if (sem_close(client) == -1) {
-            printf("could not close client semaphore");
+    if (response != 0) {
+        if (sem_close(response) == -1) {
+            printf("could not close response semaphore");
+        }
+    }
+    if (cleanup != 0) {
+        if (sem_close(cleanup) == -1) {
+            printf("could not close cleanup semaphore");
         }
     }
     if (interaction_started != 0) {
@@ -175,11 +186,14 @@ static void free_resources(void) {
         }
     }
     if (server_set_up) {
-        if (sem_unlink(SEM_SERVER) == -1) {
-            printf("could not unlink server sempahore");
+        if (sem_unlink(SEM_RESPONSE) == -1) {
+            printf("could not unlink response sempahore");
         }
-        if (sem_unlink(SEM_CLIENT) == -1) {
-            printf("could not unlink client sempahore");
+        if (sem_unlink(SEM_REQUEST) == -1) {
+            printf("could not unlink request sempahore");
+        }
+        if (sem_unlink(SEM_CLEANUP) == -1) {
+            printf("could not unlink cleanup sempahore");
         }
         if (sem_unlink(SEM_INTERACTION_STARTED) == -1) {
             printf("could not unlink interaction_started sempahore");
@@ -264,6 +278,52 @@ static void signal_print_db_handler(int sig) {
     print_db = 1;
 }
 
+static double calculate_min_max_sum_avg(int command, int field) {
+    int min = INT_MAX;
+    int max = INT_MIN;
+    int sum = 0;
+    int cnt = 0;
+    for (int i = 0; i < count_porccesses; ++i) {
+        if (field == 0) {
+            if (processes[i].p_cpu < min) {
+                min = processes[i].p_cpu;
+            } if (processes[i].p_cpu > max) {
+                max = processes[i].p_cpu;
+            }
+            sum += processes[i].p_cpu;
+        } else if (field == 1) {
+            if (processes[i].p_mem < min) {
+                min = processes[i].p_mem;
+            } if (processes[i].p_mem > max) {
+                max = processes[i].p_mem;
+            }
+            sum += processes[i].p_mem;
+        } else if (field == 2) {
+            if (processes[i].p_time < min) {
+                min = processes[i].p_time;
+            } if (processes[i].p_time > max) {
+                max = processes[i].p_time;
+            }
+            sum += processes[i].p_time;
+        } else {
+            bail_out(EXIT_FAILURE, "wrong input received at server end for calculating min/max/sum/avg - non existing field (cpu/mem/time)");
+        }
+        ++cnt;
+    }
+    if (command == 0) {
+        return (double) min;
+    } else if (command == 1) {
+        return (double) max;
+    } else if (command == 2) {
+        return (double) sum;
+    } else if (command == 3) {
+        double avg = (double) sum;
+        avg = avg/cnt;
+        return avg;
+    }
+    bail_out(EXIT_FAILURE, "wrong input received at server end for calculating min/max/sum/avg - non existing command (min/max/sum/avg)");
+    return 0.0;
+}
 
 /**
  * main
@@ -328,13 +388,17 @@ int main(int argc, char *argv[]) {
     }
 
     /* set up semaphores */
-    server = sem_open(SEM_SERVER, O_CREAT | O_EXCL, PERMISSION, 0);
-    if (server == SEM_FAILED) {
-        bail_out(errno, "could not set up server sempahore");
+    response = sem_open(SEM_RESPONSE, O_CREAT | O_EXCL, PERMISSION, 0);
+    if (response == SEM_FAILED) {
+        bail_out(errno, "could not set up response sempahore");
     }
-    client = sem_open(SEM_CLIENT, O_CREAT | O_EXCL, PERMISSION, 0);
-    if (client == SEM_FAILED) {
-        bail_out(errno, "could not set up client sempahore");
+    request = sem_open(SEM_REQUEST, O_CREAT | O_EXCL, PERMISSION, 0);
+    if (request == SEM_FAILED) {
+        bail_out(errno, "could not set up request sempahore");
+    }
+    cleanup = sem_open(SEM_CLEANUP, O_CREAT | O_EXCL, PERMISSION, 0);
+    if (cleanup == SEM_FAILED) {
+        bail_out(errno, "could not set up cleanup sempahore");
     }
     interaction_started = sem_open(SEM_INTERACTION_STARTED, O_CREAT | O_EXCL, PERMISSION, 0);
     if (interaction_started == SEM_FAILED) {
