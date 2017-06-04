@@ -61,7 +61,14 @@
 #define SHM_SERVER "/procdb_server_control_shm"
 
 struct shm_struct {
-
+    /* at first set to -1, the client sets it to either -2 if pid_cmd should be used or to the numeric value of the proccess id */
+    int pid;
+    /* at first set to -1, if the client sets pid to -2 this value gets used - if set to 0 it means min, to 1 max, to 2 sum, to 3 avg */
+    int pid_cmd;
+    /* at first set to -1, represents what information the client wants, 0 - cpu, 1 - mem, 2 - time, 3 - command */
+    int info;
+    /* at first set to NULL, this is what the server returns to the client - numbers and char* get both returned as a char* as the client does not need to proccess it */
+    char *value;
     /* after the client read the information the server sent he writes 1 to ack, the server sets it back to 0 after having cleaned up */
     int ack; 
 };
