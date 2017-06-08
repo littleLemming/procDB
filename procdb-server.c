@@ -473,8 +473,8 @@ int main(int argc, char *argv[]) {
             if (shm->info == 3) {
                 for (int i = 0; i < count_porccesses; ++i) {
                     if (processes[i].pid == shm->pid) {
+                        memset(&shm->value[0], 0, sizeof(shm->value));
                         (void)strncpy(shm->value, processes[i].p_command, LINE_SIZE-1);
-                        shm->value[LINE_SIZE-1] = "\0";
                     }
                 }
             } else {
