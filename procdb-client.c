@@ -87,6 +87,18 @@ static void signal_handler(int sig);
  */
 static void print_invalid_command(void);
 
+/**
+ * @brief executes sem_wait for a specific semaphore
+ * @param sem semaphore to execute for
+ */
+void wait_sem(sem_t *sem);
+
+/**
+ * @brief executes sem_post for a specific semaphore
+ * @param sem semaphore to execute for
+ */
+void post_sem(sem_t *sem);
+
 
 static void bail_out(int exitcode, const char *fmt, ...) {
     va_list ap;
@@ -146,6 +158,18 @@ static void signal_handler(int sig) {
 
 static void print_invalid_command(void) {
     printf("INVALID COMMAND: command must look like PID INFO - PID = {min, max, sum, avg, i} where i is a valid int >= 0, INFO = {cpu, mem, time, command}\ncommand can only appear with a specific pid\n");
+}
+
+void wait_sem(sem_t *sem) {
+    if (sem_wait(sem) == -1) {
+        bail_out(errno, "sem_wait failed");
+    }
+}
+
+void post_sem(sem_t *sem) {
+    if (sem_post(sem) == -1) {
+        bail_out(errno, "sem_post failed");
+    }
 }
 
 /**
@@ -232,6 +256,10 @@ int main(int argc, char *argv[]) {
                 continue;
             }
             pid = i;
+            if (pid < 0) {
+                print_invalid_command();
+                continue;
+            }
         }
         if (pid_cmd != -1 && pid == -1) {
             pid = -2;
@@ -269,13 +297,38 @@ int main(int argc, char *argv[]) {
             print_invalid_command();
             continue;
         }
-        printf("%d\n", pid);
-        printf("%d\n", pid_cmd);
-        printf("%d\n", info);
 
-        /* write the command to the server */
+        /* lock the shared memory space for the current client */
+        wait_sem(interaction_started);
 
-        /* read the response and print */
+        /* write the request to the server */
+        wait_sem(client);
+        /* critical section start */
+        shm->pid = pid;
+        shm->pid_cmd = pid_cmd;
+        shm->info = info;
+        /* critical section end */
+        post_sem(server);
+
+        /* read the servers response */
+        wait_sem(client);
+        /* critical section start */
+        if (shm->pid_cmd != -1) {
+            printf("- %d\n", shm->value_d);
+        } else if (shm->info == 3) {
+            if (shm->value[(strlen(shm->value)-1)] == '\n') {
+                char *pos = shm->value+strlen(shm->value)-1;
+                *pos = '\0';
+            }
+            printf("%d %s\n", shm->pid, shm->value);
+        } else {
+            printf("%d %d\n", shm->pid, shm->value_d);
+        }
+        /* critical section end */
+        post_sem(server);
+
+        /* unlock the shared memory space */
+        post_sem(interaction_started);
     }
     free(line);
 

@@ -85,6 +85,8 @@ struct shm_struct {
     int pid_cmd;
     /* at first set to -1, represents what information the client wants, 0 - cpu, 1 - mem, 2 - time, 3 - command */
     int info;
-    /* at first set to NULL, this is what the server returns to the client - numbers and char* get both returned as a char* as the client does not need to proccess it */
-    char *value;
+    /* at first set to NULL, this is what the server returns to the client  */
+    char value[LINE_SIZE];
+    /* at first set to -1, this is what the server returns to the client when returning a numeric value - if this gets returned if value is set to NULL */
+    int value_d;
 };

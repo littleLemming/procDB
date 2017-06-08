@@ -122,9 +122,29 @@ static void signal_print_db_handler(int sig);
  * @brief this funciton calculates and returns the result of the calculation of min/max/sum/avg over all processes
  * @param command 0 - min, 1 - max, 2 - sum, 3 - avg
  * @param field 0 - cpu, 1 - mem, 2 - time
- * @return returns the result as a double
+ * @return returns the result as an integer
  */
-static double calculate_min_max_sum_avg(int command, int field);
+static int calculate_min_max_sum_avg(int command, int field);
+
+/**
+ * @brief executes sem_wait for a specific semaphore
+ * @param sem semaphore to execute for
+ */
+void wait_sem(sem_t *sem);
+
+/**
+ * @brief executes sem_post for a specific semaphore
+ * @param sem semaphore to execute for
+ */
+void post_sem(sem_t *sem);
+
+/**
+ * @brief this funciton searches the list of processes and returns the value
+ * @param pid for wich to look for
+ * @param field 0 - cpu, 1 - mem, 2 - time
+ * @return returns the value if it was found - otherwise -1
+ */
+static int get_cpu_mem_time(int pid, int field);
 
 
 static void bail_out(int exitcode, const char *fmt, ...) {
@@ -265,7 +285,7 @@ static void signal_print_db_handler(int sig) {
     print_db = 1;
 }
 
-static double calculate_min_max_sum_avg(int command, int field) {
+static int calculate_min_max_sum_avg(int command, int field) {
     int min = INT_MAX;
     int max = INT_MIN;
     int sum = 0;
@@ -298,18 +318,48 @@ static double calculate_min_max_sum_avg(int command, int field) {
         ++cnt;
     }
     if (command == 0) {
-        return (double) min;
+        return min;
     } else if (command == 1) {
-        return (double) max;
+        return max;
     } else if (command == 2) {
-        return (double) sum;
+        return sum;
     } else if (command == 3) {
-        double avg = (double) sum;
-        avg = avg/cnt;
-        return avg;
+        return sum/cnt;
     }
     bail_out(EXIT_FAILURE, "wrong input received at server end for calculating min/max/sum/avg - non existing command (min/max/sum/avg)");
-    return 0.0;
+    return 0;
+}
+
+void wait_sem(sem_t *sem) {
+    if (sem_wait(sem) == -1) {
+        bail_out(errno, "sem_wait failed");
+    }
+}
+
+void post_sem(sem_t *sem) {
+    if (sem_post(sem) == -1) {
+        bail_out(errno, "sem_post failed");
+    }
+}
+
+static int get_cpu_mem_time(int pid, int field) {
+    for (int i = 0; i < count_porccesses; ++i) {
+        if (processes[i].pid == pid) {
+            if (field == 0) {
+                return processes[i].p_cpu;
+            } else if (field == 1) {
+                return processes[i].p_mem;
+            } else if (field == 2) {
+                return processes[i].p_time;
+            } else {
+                if (field == 3) {
+                    return -1;
+                }
+                bail_out(EXIT_FAILURE, "wrong input received at server end for calculating min/max/sum/avg - non existing field (cpu/mem/time)");
+            }
+        }
+    }
+    return -1;
 }
 
 /**
@@ -353,9 +403,6 @@ int main(int argc, char *argv[]) {
     processes = malloc(sizeof(struct process)*5);
     length_porccesses = 5;
 
-    /* parse arguments */
-    parse_args(argc, argv);
-
     /* setup shared memory */
     int shmfd = shm_open(SHM_SERVER, O_RDWR | O_CREAT, PERMISSION);
     if (shmfd == -1) {
@@ -375,20 +422,35 @@ int main(int argc, char *argv[]) {
     }
 
     /* set up semaphores */
-    client = sem_open(SEM_CLIENT, O_CREAT | O_EXCL, PERMISSION, 1);
+    client = sem_open(SEM_CLIENT, O_CREAT | O_EXCL, PERMISSION, 0);
     if (client == SEM_FAILED) {
         bail_out(errno, "could not set up client sempahore");
     }
-    server = sem_open(SEM_SERVER, O_CREAT | O_EXCL, PERMISSION, 0);
+    server = sem_open(SEM_SERVER, O_CREAT | O_EXCL, PERMISSION, 1);
     if (server == SEM_FAILED) {
         bail_out(errno, "could not set up server sempahore");
     }
-    interaction_started = sem_open(SEM_INTERACTION_STARTED, O_CREAT | O_EXCL, PERMISSION, 1);
+    interaction_started = sem_open(SEM_INTERACTION_STARTED, O_CREAT | O_EXCL, PERMISSION, 0);
     if (interaction_started == SEM_FAILED) {
         bail_out(errno, "could not set up interaction_started sempahore");
     }
 
+    /* parse arguments */
+    parse_args(argc, argv);
+
     server_set_up = 1;
+
+    /* set shared memory to default values */
+    wait_sem(server);
+    /* critical section start */
+    shm->pid = -1;
+    shm->pid_cmd = -1;
+    shm->info = -1;
+    (void)strncpy(shm->value, "no command\0", LINE_SIZE-1);
+    shm->value_d = -1;
+    /* critical section end */
+    post_sem(client);
+    post_sem(interaction_started);
 
     /* wait for requests of clients, and write back answers */
     while (TRUE) {
@@ -402,7 +464,36 @@ int main(int argc, char *argv[]) {
             }
             print_db = 0;
         }
-        
+        /* wait for client to connect then read the request and write the response */
+        wait_sem(server);
+        /* critical section start */
+        if (shm->pid_cmd != -1) {
+            shm->value_d = calculate_min_max_sum_avg(shm->pid_cmd, shm->info);
+        } else {
+            if (shm->info == 3) {
+                for (int i = 0; i < count_porccesses; ++i) {
+                    if (processes[i].pid == shm->pid) {
+                        (void)strncpy(shm->value, processes[i].p_command, LINE_SIZE-1);
+                        shm->value[LINE_SIZE-1] = "\0";
+                    }
+                }
+            } else {
+                shm->value_d = get_cpu_mem_time(shm->pid, shm->info);
+            }
+        }
+        /* critical section end */
+        post_sem(client);
+
+        /* clean up as soon as the client finished reading */
+        wait_sem(server);
+        /* critical seciton start */
+        shm->pid = -1;
+        shm->pid_cmd = -1;
+        shm->info = -1;
+        (void)strncpy(shm->value, "no command\0", LINE_SIZE-1);
+        shm->value_d = -1;
+        /* critical section end */
+        post_sem(client);
     }
 
     free_resources();
