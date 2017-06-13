@@ -18,6 +18,8 @@ In this case `SEM_LOCATION` is the name of the semaphore.
 `PERMISSIONS` in this case is 600 wich means that the owner can read & write.
 The last argument specifies the initial value of the semaphore.
 
+If a process wants to enter the critical section it has to call `sem_wait(sem)`. If `sem_wait(sem) == -1` an error occured. It will decrement the value of the semaphore `sem` if the value is greater than 0. Otherwise it will wait until the value of the semaphore is greater than 0.
 
+If a process wants to show that it has left the critical section it has to call `sem_post(sem)` wich will increment the value of the semaphore.
 
 ## Shared Memory
