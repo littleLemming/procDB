@@ -23,3 +23,35 @@ If a process wants to enter the critical section it has to call `sem_wait(sem)`.
 If a process wants to show that it has left the critical section it has to call `sem_post(sem)` wich will increment the value of the semaphore.
 
 ## Shared Memory
+For a shared memory the structure has to be defined. This can be done with a struct.
+Then to access the shared memory just initialize the struct in a variable. 
+```
+struct shm_struct {
+    int a;
+    float b;
+    short d;
+    char e[LINE_SIZE];
+};
+
+struct shm_struct *shm;
+```
+For strings remember that it is not possible to just store a `char*` - the maximum size of the string has to be defined.
+With `shm_open` it is possible to create or open an shared memory space. If `shmfd` is -1 an error has occured while setting this up.
+```
+int shmfd = shm_open(SHM_SERVER, O_RDWR | O_CREAT, PERMISSION);
+```
+The shared memory has to be formatted to the right size wich can be done `ftruncate`. 
+```
+ftruncate(shmfd, sizeof *shm)
+```
+If this operation fails it returns -1.
+Afterwards it is necessary to establish a mapping between the shared memory and the address space of the process. 
+```
+shm = mmap(NULL, sizeof *shm, PROT_READ | PROT_WRITE, MAP_SHARED, shmfd, 0);
+```
+If `shm` afterwards is `MAP_FAILED` the operation has failed.
+It is necessry to close the descriptor again after the shared memory has been completely set up. This can be done with
+```
+close(shmfd)
+```
+Again - if the outout of this operation is -1 the file descriptor could not be properly closed.
