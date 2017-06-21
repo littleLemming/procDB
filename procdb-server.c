@@ -127,18 +127,6 @@ static void signal_print_db_handler(int sig);
 static int calculate_min_max_sum_avg(int command, int field);
 
 /**
- * @brief executes sem_wait for a specific semaphore
- * @param sem semaphore to execute for
- */
-void wait_sem(sem_t *sem);
-
-/**
- * @brief executes sem_post for a specific semaphore
- * @param sem semaphore to execute for
- */
-void post_sem(sem_t *sem);
-
-/**
  * @brief this funciton searches the list of processes and returns the value
  * @param pid for wich to look for
  * @param field 0 - cpu, 1 - mem, 2 - time
@@ -330,18 +318,6 @@ static int calculate_min_max_sum_avg(int command, int field) {
     return 0;
 }
 
-void wait_sem(sem_t *sem) {
-    if (sem_wait(sem) == -1) {
-        bail_out(errno, "sem_wait failed");
-    }
-}
-
-void post_sem(sem_t *sem) {
-    if (sem_post(sem) == -1) {
-        bail_out(errno, "sem_post failed");
-    }
-}
-
 static int get_cpu_mem_time(int pid, int field) {
     for (int i = 0; i < count_porccesses; ++i) {
         if (processes[i].pid == pid) {
@@ -441,7 +417,9 @@ int main(int argc, char *argv[]) {
     server_set_up = 1;
 
     /* set shared memory to default values */
-    wait_sem(server);
+    if (sem_wait(server) == -1) {
+        bail_out(errno, "sem_wait failed");
+    }
     /* critical section start */
     shm->pid = -1;
     shm->pid_cmd = -1;
@@ -449,8 +427,15 @@ int main(int argc, char *argv[]) {
     (void)strncpy(shm->value, "no command\0", LINE_SIZE-1);
     shm->value_d = -1;
     /* critical section end */
-    post_sem(client);
-    post_sem(interaction_started);
+    if (sem_post(server) == -1) {
+        bail_out(errno, "sem_post failed");
+    }
+    if (sem_post(client) == -1) {
+        bail_out(errno, "sem_post failed");
+    }
+    if (sem_post(interaction_started) == -1) {
+        bail_out(errno, "sem_post failed");
+    }
 
     /* wait for requests of clients, and write back answers */
     while (TRUE) {
@@ -465,7 +450,12 @@ int main(int argc, char *argv[]) {
             print_db = 0;
         }
         /* wait for client to connect then read the request and write the response */
-        wait_sem(server);
+        if (sem_wait(server) == -1) {
+            if (errno == EINTR) {
+                continue;
+            }
+            bail_out(errno, "sem_wait failed");
+        }
         /* critical section start */
         if (shm->pid_cmd != -1) {
             shm->value_d = calculate_min_max_sum_avg(shm->pid_cmd, shm->info);
@@ -482,10 +472,17 @@ int main(int argc, char *argv[]) {
             }
         }
         /* critical section end */
-        post_sem(client);
+        if (sem_post(client) == -1) {
+            bail_out(errno, "sem_post failed");
+        }
 
         /* clean up as soon as the client finished reading */
-        wait_sem(server);
+        if (sem_wait(server) == -1) {
+            if (errno == EINTR) {
+                continue;
+            }
+            bail_out(errno, "sem_wait failed");
+        }
         /* critical seciton start */
         shm->pid = -1;
         shm->pid_cmd = -1;
@@ -493,7 +490,9 @@ int main(int argc, char *argv[]) {
         (void)strncpy(shm->value, "no command\0", LINE_SIZE-1);
         shm->value_d = -1;
         /* critical section end */
-        post_sem(client);
+        if (sem_post(client) == -1) {
+            bail_out(errno, "sem_post failed");
+        }
     }
 
     free_resources();
